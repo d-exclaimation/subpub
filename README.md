@@ -1,5 +1,5 @@
 <p align="center">
-<img src="./subpub.png" width="300" alt="logo"/>
+<img src="./subpub.png" width="200" alt="logo" style="margin: 10px"/>
 </p>
 <p align="center"> <h1>SubPub</h1></p>
 
