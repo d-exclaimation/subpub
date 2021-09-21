@@ -8,7 +8,7 @@ A lightweight Akka Stream PubSub engine for distributing data to multiple consum
 
 ## Setup
 
-**Latest Version**: `0.1.0`
+**Latest Version**: `0.1.1`
 
 ```sbt
 "io.github.d-exclaimation" % "subpub" % latestVersion
