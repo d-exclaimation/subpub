@@ -22,7 +22,10 @@ SubPub main goals are to:
 - Differentiate streams based on topic, which can used to push the proper data into the proper streams.
 - Also handles creation in a lazy and concurrent safe way, no need to worry about race conditions.
 
-### HTTP and Websocket
+## Examples
+
+<details>
+<summary><b>REST + Websocket Realtime API</b></summary>
 
 An example using this for HTTP + Websocket Realtime API
 
@@ -35,43 +38,40 @@ object Main extends SprayJsonSupport {
   val pubsub = new SubPub()
 
   val route: Route = {
-    (path("send" / Segment) & post & entity(as[JsValue])) { (p, r) =>
-      postRequest(p, r) 
+    (path("send" / Segment) & post & entity(as[JsValue])) { path =>
+      entity(as[JsValue]) { 
+        case JsObject(body) => sendMessage(path, body)
+        case _ => complete(BadRequest -> JsString("Bad message"))
+      }
     } ~ path("websocket" / Segment) { path =>
       handleWebSocketMessages(websocketMessage(path))
     }
   }
 
-  def postRequest(path: String, req: JsValue): Route = req match {
-    case JsObject(body) => sendMessage(path, body)
-    case _ => complete(BadRequest -> "Bad message")
-  }
-
   // Handle HTTP Post and emit to websocket
   def sendMessage(path: String, body: Map[String, JsValue]): Route = {
-    val response = body.get("content")
-      .map { content =>
-        // get name or use anonymous
-        val name = body.getOrElse("name", JsString("anonymous"))
-        val msg = JsObject(
-          "content" -> content,
-          "name" -> name,
-          "createdAt" -> JsString(Instant.now().toString)
-        )
-        // Send to Source for Websocket
-        pubsub.publish(path, msg)
-        OK -> msg
-      }
-      .getOrElse(BadRequest -> "Bad message")
-
-    complete(response)
+    try {
+      val content = body("content")
+      val name = body("name")
+      val msg = JsObject(
+        "content" -> content,
+        "name" -> name,
+        "createdAt" -> JsString(Instant.now().toString) 
+      )
+      // Push message to subpub
+      pubsub.publish(s"chat::$path", msg)
+      complete(OK -> msg)
+    } catch {
+      case NonFatal(_) => 
+        complete(BadRequest -> "Bad message")
+    }
   }
 
   // Handle Websocket Flow using the topic based Source
-  def websocketMessage(path): Flow[Message, TextMessage.Strict, _] = {
+  def websocketMessage(path: String): Flow[Message, TextMessage.Strict, _] = {
     val source = pubsub
-      .source[JsValue](path)
-      .map(_.compactPrint) // JSON to String
+      .source[JsValue](s"chat::$path")
+      .map(_.compactPrint) 
       .map(TextMessage.Strict)
 
     val sink = Flow[Message]
@@ -84,8 +84,9 @@ object Main extends SprayJsonSupport {
   // ...
 }
 ```
-
-### GraphQL Subscriptions
+</details>
+<details>
+<summary><b>Realtime GraphQL API</b></summary>
 
 Using with a Realtime GraphQL API with Subscription using [Sangria](https://sangria-graphql.github.io/)
 and [OverLayer](https://overlayer.netlify.app).
@@ -147,6 +148,8 @@ object Main extends SprayJsonSupport {
   // ...
 }
 ```
+
+</details>
 
 ## Feedback
 
