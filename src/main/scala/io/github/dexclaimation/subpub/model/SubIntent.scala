@@ -22,6 +22,9 @@ object SubIntent {
   /** Publish a payload to a topic */
   case class Publish(topic: String, payload: Any) extends SubIntent
 
+  /** Complete a source and register a new one */
+  case class Reinitialize(topic: String) extends SubIntent
+
   /** Kill / Complete a topic source */
   case class AcidPill(topic: String) extends SubIntent
 }

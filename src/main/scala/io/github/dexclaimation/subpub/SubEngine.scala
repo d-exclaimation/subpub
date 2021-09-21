@@ -33,9 +33,8 @@ class SubEngine(
   implicit private val mat: Materializer = createMaterializer(context)
 
   /** Topic -> Emitter */
-  private val eq = mutable.Map.empty[
-    String, Emitter
-  ]
+  private val eq = mutable.Map
+    .empty[String, Emitter]
 
   /**
    * On Message Handler
@@ -44,9 +43,9 @@ class SubEngine(
    */
   def onMessage(msg: SubIntent): Behavior[SubIntent] = receive(msg) {
     case SubIntent.Fetch(topic, rep) => safe {
-      val emitter = eq.getOrElse(topic, createSource())
+      val emitter = eq.getOrElse(topic, constructEmitter())
       eq.update(topic, emitter)
-      rep.!(emitter.source)
+      rep ! emitter.source
     }
 
     case SubIntent.Publish(topic, payload) => safe {
@@ -56,8 +55,13 @@ class SubEngine(
 
     case SubIntent.AcidPill(topic) => safe {
       eq.get(topic)
-        .foreach(_ ! null)
+        .foreach(_ ! SubEngine.Thermite)
       eq.remove(topic)
+    }
+
+    case SubIntent.Reinitialize(topic) => safe {
+      eq.get(topic).foreach(_ ! SubEngine.Thermite)
+      eq.update(topic, constructEmitter())
     }
   }
 
@@ -72,16 +76,16 @@ class SubEngine(
 
   /** Fallible Matcher */
   private val nullable: PartialFunction[Any, Throwable] = {
-    case null => new Error("Cannot send in null")
+    case SubEngine.Thermite => new Error("Cannot send in null")
   }
 
   /** Completion Matcher */
   private val completion: PartialFunction[Any, Unit] = {
-    case null => ()
+    case SubEngine.Thermite => ()
   }
 
-  /** Create a source for a topic */
-  private def createSource(): Emitter = {
+  /** Create a Emitter for a topic */
+  private def constructEmitter() = {
     val (actorRef, publisher) = ActorSource
       .actorRef[Any](
         completionMatcher = completion,
@@ -102,4 +106,8 @@ object SubEngine {
   /** Create a Actor Behavior for SubEngine */
   def behavior(bufferSize: Int = 100): Behavior[SubIntent] =
     Behaviors.setup(new SubEngine(_, bufferSize))
+
+
+  /** Kill a Stream */
+  case object Thermite
 }
