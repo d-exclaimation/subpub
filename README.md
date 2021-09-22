@@ -21,6 +21,11 @@ SubPub main goals are to:
 - Handle creation, distribution, management of both the outgoing stream of data and incoming published data.
 - Differentiate streams based on topic, which can used to push the proper data into the proper streams.
 - Also handles creation in a lazy and concurrent safe way, no need to worry about race conditions.
+- All of the above on lightweight code embedded implementation.
+
+### Consideration
+
+For more complex implementation i.e. connecting to a PubSub / Distributed streaming platform like Kafka. Consider using [Alpakka](https://doc.akka.io/docs/alpakka/current/index.html) instead.
 
 ## Examples
 
