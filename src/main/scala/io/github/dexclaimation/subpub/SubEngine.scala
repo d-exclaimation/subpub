@@ -17,7 +17,7 @@ import akka.stream.{Materializer, OverflowStrategy}
 import io.github.dexclaimation.subpub.model.{Emitter, SubIntent}
 
 import scala.collection.mutable
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.duration.DurationInt
 import scala.util.Try
 
 /**
@@ -29,14 +29,13 @@ import scala.util.Try
 class SubEngine(
   override val context: ActorContext[SubIntent],
   bufferSize: Int = 100,
-  keepAlive: FiniteDuration = 2.minutes
 ) extends AbstractBehavior[SubIntent](context) {
 
   implicit private val mat: Materializer = createMaterializer(context)
 
   /** Topic -> Emitter */
   private val eq = mutable.Map
-    .empty[String, Emitter]
+    .empty[String, Seq[Emitter]]
 
   /**
    * On Message Handler
@@ -45,28 +44,31 @@ class SubEngine(
    */
   def onMessage(msg: SubIntent): Behavior[SubIntent] = receive(msg) {
     case SubIntent.Fetch(topic, rep) => safe {
-      val emitter = eq.get(topic)
-        .flatMap(mitt => if (mitt.isOff) None else Some(mitt))
-        .getOrElse(constructEmitter())
-
-      eq.update(topic, emitter)
+      val emitter = constructEmitter()
       rep ! emitter.source
+
+      val emitters = eq.getOrElse(topic, Seq.empty)
+        .cleaned
+        .appended(emitter)
+
+      eq.update(topic, emitters)
     }
 
     case SubIntent.Publish(topic, payload) => safe {
       eq.get(topic)
-        .foreach(_ ! payload)
+        .foreach(_.foreach(_ ! payload))
     }
 
     case SubIntent.AcidPill(topic) => safe {
       eq.get(topic)
-        .foreach(_ ! SubEngine.Thermite)
+        .foreach(_.foreach(_ ! SubEngine.Thermite))
       eq.remove(topic)
     }
 
     case SubIntent.Reinitialize(topic) => safe {
-      eq.get(topic).foreach(_ ! SubEngine.Thermite)
-      eq.update(topic, constructEmitter())
+      eq.get(topic).foreach { emitters =>
+        eq.update(topic, emitters.cleaned)
+      }
     }
   }
 
@@ -98,20 +100,27 @@ class SubEngine(
         bufferSize = bufferSize,
         overflowStrategy = OverflowStrategy.dropHead
       )
-      .idleTimeout(keepAlive)
       .toMat(Sink.asPublisher(true))(Keep.both)
       .run()
 
     val source = Source.fromPublisher(publisher)
 
-    Emitter(actorRef, source, keepAlive)
+    Emitter(actorRef, source, 20.seconds)
+  }
+
+  private implicit class Emitters(seq: Seq[Emitter]) {
+
+    /** Clear and clean emitter that are off due to timeout */
+    def cleaned: Seq[Emitter] = seq
+      .tapEach(e => if (e.isOff) e ! SubEngine.Thermite else ())
+      .filterNot(_.isOff)
   }
 }
 
 object SubEngine {
   /** Create a Actor Behavior for SubEngine */
-  def behavior(bufferSize: Int = 100, timeoutDuration: FiniteDuration): Behavior[SubIntent] =
-    Behaviors.setup(new SubEngine(_, bufferSize, timeoutDuration))
+  def behavior(bufferSize: Int = 100): Behavior[SubIntent] =
+    Behaviors.setup(new SubEngine(_, bufferSize))
 
 
   /** Kill a Stream */
