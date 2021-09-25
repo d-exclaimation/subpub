@@ -20,6 +20,7 @@ import scala.reflect.ClassTag
 
 class SubPub(
   bufferSize: Int = 100,
+  timeoutDuration: FiniteDuration = 2.minutes,
   idleDuration: FiniteDuration = 30.seconds,
   awaitDuration: FiniteDuration = 5.seconds,
 )(implicit system: ActorSystem[SpawnProtocol.Command]) {
@@ -42,7 +43,7 @@ class SubPub(
   /** SubPub Engine */
   private val engine = {
     val spawn = (rep: ActorRef[ActorRef[SubIntent]]) => SpawnProtocol.Spawn(
-      behavior = SubEngine.behavior(bufferSize),
+      behavior = SubEngine.behavior(bufferSize, timeoutDuration),
       name = "SubPubEngine",
       props = Props.empty,
       replyTo = rep

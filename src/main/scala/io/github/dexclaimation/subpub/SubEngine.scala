@@ -17,6 +17,7 @@ import akka.stream.{Materializer, OverflowStrategy}
 import io.github.dexclaimation.subpub.model.{Emitter, SubIntent}
 
 import scala.collection.mutable
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.util.Try
 
 /**
@@ -27,7 +28,8 @@ import scala.util.Try
  */
 class SubEngine(
   override val context: ActorContext[SubIntent],
-  bufferSize: Int = 100
+  bufferSize: Int = 100,
+  keepAlive: FiniteDuration = 2.minutes
 ) extends AbstractBehavior[SubIntent](context) {
 
   implicit private val mat: Materializer = createMaterializer(context)
@@ -43,7 +45,10 @@ class SubEngine(
    */
   def onMessage(msg: SubIntent): Behavior[SubIntent] = receive(msg) {
     case SubIntent.Fetch(topic, rep) => safe {
-      val emitter = eq.getOrElse(topic, constructEmitter())
+      val emitter = eq.get(topic)
+        .flatMap(mitt => if (mitt.isOff) None else Some(mitt))
+        .getOrElse(constructEmitter())
+
       eq.update(topic, emitter)
       rep ! emitter.source
     }
@@ -93,19 +98,20 @@ class SubEngine(
         bufferSize = bufferSize,
         overflowStrategy = OverflowStrategy.dropHead
       )
+      .idleTimeout(keepAlive)
       .toMat(Sink.asPublisher(true))(Keep.both)
       .run()
 
     val source = Source.fromPublisher(publisher)
 
-    Emitter(actorRef, source)
+    Emitter(actorRef, source, keepAlive)
   }
 }
 
 object SubEngine {
   /** Create a Actor Behavior for SubEngine */
-  def behavior(bufferSize: Int = 100): Behavior[SubIntent] =
-    Behaviors.setup(new SubEngine(_, bufferSize))
+  def behavior(bufferSize: Int = 100, timeoutDuration: FiniteDuration): Behavior[SubIntent] =
+    Behaviors.setup(new SubEngine(_, bufferSize, timeoutDuration))
 
 
   /** Kill a Stream */
