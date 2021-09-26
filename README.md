@@ -25,7 +25,9 @@ SubPub main goals are to:
 
 ### Consideration
 
-For more complex implementation i.e. connecting to a PubSub / Distributed streaming platform like Kafka. Consider using [Alpakka](https://doc.akka.io/docs/alpakka/current/index.html) instead.
+Similar to `PubSub` from [graphql-subscriptions](https://github.com/apollographql/graphql-subscriptions), SubPub is also an in-memory event streaming system that only supports a single server instance. On a production environment, it is strongly recommended to use other implementation that are backed with an external datastore such as Redis or Kafka.
+
+Consider using [Alpakka](https://doc.akka.io/docs/alpakka/current/index.html) instead for this scenario.
 
 ## Examples
 
