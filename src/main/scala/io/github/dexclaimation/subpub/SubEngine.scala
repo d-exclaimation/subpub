@@ -8,16 +8,17 @@
 package io.github.dexclaimation.subpub
 
 
+import akka.NotUsed
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
+import akka.stream.Materializer
 import akka.stream.Materializer.createMaterializer
-import akka.stream.scaladsl.{Keep, Sink, Source}
-import akka.stream.typed.scaladsl.ActorSource
-import akka.stream.{Materializer, OverflowStrategy}
-import io.github.dexclaimation.subpub.model.{Emitter, SubIntent}
+import akka.stream.scaladsl.Sink
+import io.github.dexclaimation.subpub.implicits._
+import io.github.dexclaimation.subpub.model.Subtypes.{ID, cuid}
+import io.github.dexclaimation.subpub.model.{Cascade, SubIntent}
 
 import scala.collection.mutable
-import scala.concurrent.duration.DurationInt
 import scala.util.Try
 
 /**
@@ -33,9 +34,13 @@ class SubEngine(
 
   implicit private val mat: Materializer = createMaterializer(context)
 
-  /** Topic -> Emitter */
-  private val eq = mutable.Map
-    .empty[String, Seq[Emitter]]
+  /** Subscriber Collection */
+  private val subscribers = mutable.Map
+    .empty[ID, Cascade]
+
+  /** Topics Index Collection */
+  private val topics = mutable.Map
+    .empty[String, Seq[ID]]
 
   /**
    * On Message Handler
@@ -44,30 +49,38 @@ class SubEngine(
    */
   def onMessage(msg: SubIntent): Behavior[SubIntent] = receive(msg) {
     case SubIntent.Fetch(topic, rep) => safe {
-      val emitter = constructEmitter()
-      rep ! emitter.source
+      val id = cuid()
+      val sub = Cascade(bufferSize)
+      val source = sub.source(pipeToSelf(id))
 
-      val emitters = eq.getOrElse(topic, Seq.empty)
-        .cleaned
-        .appended(emitter)
+      rep ! source
 
-      eq.update(topic, emitters)
+      subscribers.update(id, sub)
+      topics.update(topic,
+        topics.getOrElse(topic, Seq.empty) :+ id
+      )
     }
 
     case SubIntent.Publish(topic, payload) => safe {
-      eq.get(topic)
-        .foreach(_.foreach(_ ! payload))
+      topics.includes(topic, subscribers)
+        .foreach(_.next(payload))
     }
 
     case SubIntent.AcidPill(topic) => safe {
-      eq.get(topic)
-        .foreach(_.foreach(_ ! SubEngine.Thermite))
-      eq.remove(topic)
+      topics.includes(topic, subscribers)
+        .foreach(_.shutdown())
+      topics.remove(topic)
     }
 
     case SubIntent.Reinitialize(topic) => safe {
-      eq.get(topic).foreach { emitters =>
-        eq.update(topic, emitters.cleaned)
+      topics.includes(topic, subscribers)
+        .foreach(_.shutdown())
+    }
+
+    case SubIntent.Timeout(id) => safe {
+      subscribers.get(id).foreach { sub =>
+        sub.shutdown()
+        subscribers.remove(id)
       }
     }
   }
@@ -81,39 +94,10 @@ class SubEngine(
   /** Safely executor a code block and ignore exception */
   private def safe(fallible: => Unit): Unit = Try(fallible)
 
-  /** Fallible Matcher */
-  private val nullable: PartialFunction[Any, Throwable] = {
-    case SubEngine.Thermite => new Error("Cannot send in null")
-  }
 
-  /** Completion Matcher */
-  private val completion: PartialFunction[Any, Unit] = {
-    case SubEngine.Thermite => ()
-  }
-
-  /** Create a Emitter for a topic */
-  private def constructEmitter() = {
-    val (actorRef, publisher) = ActorSource
-      .actorRef[Any](
-        completionMatcher = completion,
-        failureMatcher = nullable,
-        bufferSize = bufferSize,
-        overflowStrategy = OverflowStrategy.dropHead
-      )
-      .toMat(Sink.asPublisher(true))(Keep.both)
-      .run()
-
-    val source = Source.fromPublisher(publisher)
-
-    Emitter(actorRef, source, 20.seconds)
-  }
-
-  private implicit class Emitters(seq: Seq[Emitter]) {
-
-    /** Clear and clean emitter that are off due to timeout */
-    def cleaned: Seq[Emitter] = seq
-      .tapEach(e => if (e.isOff) e ! SubEngine.Thermite else ())
-      .filterNot(_.isOff)
+  /** End a subscriber */
+  private def pipeToSelf(id: ID): Sink[Any, NotUsed] = Sink.onComplete { _ =>
+    context.self ! SubIntent.Timeout(id)
   }
 }
 
@@ -122,7 +106,4 @@ object SubEngine {
   def behavior(bufferSize: Int = 100): Behavior[SubIntent] =
     Behaviors.setup(new SubEngine(_, bufferSize))
 
-
-  /** Kill a Stream */
-  case object Thermite
 }

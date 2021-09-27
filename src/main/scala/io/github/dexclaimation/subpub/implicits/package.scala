@@ -12,6 +12,7 @@ import akka.NotUsed
 import akka.stream.scaladsl.Source
 
 import java.time.Instant
+import scala.collection.mutable
 
 package object implicits {
   /** Extensions for middleware capabilities */
@@ -33,5 +34,19 @@ package object implicits {
       .tap { value =>
         if (predicate(value)) logger(s"[ $topic ] >> ${value.toString} on ${Instant.now().toString}")
       }
+  }
+
+  /** Extensions for join using flatMap */
+  implicit class LeftJoin[Root, Associated](
+    collection: mutable.Map[Root, Seq[Associated]]
+  ) {
+
+    /** Grabbing association from another collection for a specified root */
+    def includes[Result](
+      root: Root, association: mutable.Map[Associated, Result]
+    ): Iterable[Result] = collection.get(root) match {
+      case Some(value) => value.flatMap(association.get)
+      case None => Iterable.empty
+    }
   }
 }
