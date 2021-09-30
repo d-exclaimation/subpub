@@ -43,7 +43,9 @@ package object implicits {
      * @return A source of the same type
      */
     def toBroadcastHub(bufferSize: Int = 256)(implicit mat: Materializer): Source[T, NotUsed] = {
-      val bs = if (scala.math.sqrt(bufferSize.toDouble).isWhole) bufferSize else 256
+      val isPowerOf2 = (bufferSize & bufferSize - 1) == 0
+      val isBetween = 0 < bufferSize && bufferSize < 4096
+      val bs = if (isPowerOf2 && isBetween) bufferSize else 256
       source.toMat(BroadcastHub.sink[T](bs))(Keep.right).run()
     }
   }
