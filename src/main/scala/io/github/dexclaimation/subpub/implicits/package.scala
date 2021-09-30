@@ -9,10 +9,10 @@
 package io.github.dexclaimation.subpub
 
 import akka.NotUsed
-import akka.stream.scaladsl.Source
+import akka.stream.Materializer
+import akka.stream.scaladsl.{BroadcastHub, Keep, Source}
 
 import java.time.Instant
-import scala.collection.mutable
 
 package object implicits {
   /** Extensions for middleware capabilities */
@@ -34,19 +34,19 @@ package object implicits {
       .tap { value =>
         if (predicate(value)) logger(s"[ $topic ] >> ${value.toString} on ${Instant.now().toString}")
       }
-  }
 
-  /** Extensions for join using flatMap */
-  implicit class LeftJoin[Root, Associated](
-    collection: mutable.Map[Root, Seq[Associated]]
-  ) {
-
-    /** Grabbing association from another collection for a specified root */
-    def includes[Result](
-      root: Root, association: mutable.Map[Associated, Result]
-    ): Iterable[Result] = collection.get(root) match {
-      case Some(value) => value.flatMap(association.get)
-      case None => Iterable.empty
+    /**
+     * Make a source into a broadcast hub that acts as publisher to multiple consumer.
+     *
+     * @param bufferSize Buffer size for broadcast hub (in power of 2)
+     * @param mat        Implicit materializer
+     * @return A source of the same type
+     */
+    def toBroadcastHub(bufferSize: Int = 256)(implicit mat: Materializer): Source[T, NotUsed] = {
+      val isPowerOf2 = (bufferSize & bufferSize - 1) == 0
+      val isBetween = 0 < bufferSize && bufferSize < 4096
+      val bs = if (isPowerOf2 && isBetween) bufferSize else 256
+      source.toMat(BroadcastHub.sink[T](bs))(Keep.right).run()
     }
   }
 }

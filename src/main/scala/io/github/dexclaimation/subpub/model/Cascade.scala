@@ -13,6 +13,8 @@ import akka.actor.typed.ActorRef
 import akka.stream._
 import akka.stream.scaladsl.{Keep, Sink, Source}
 import akka.stream.typed.scaladsl.ActorSource
+import io.github.dexclaimation.subpub.implicits.SourceMiddleware
+import io.github.dexclaimation.subpub.utils.FlatKeep
 
 /**
  * Wrapper Object for ActorRef & Source
@@ -36,14 +38,12 @@ case class Cascade(
   /** Stop the stream */
   def shutdown(): Unit = killSwitch.shutdown()
 
-  /** Source with a wireTap-like Sink */
-  def source(
-    that: Graph[SinkShape[Any], _]
-  ): Source[Any, NotUsed] = source.alsoTo(that)
+  /** Source with a stoppable consumer source */
+  def stream: Source[Any, NotUsed] = source
 }
 
 object Cascade {
-  def apply(bufferSize: Int)(implicit mat: Materializer): Cascade = {
+  def apply(bufferSize: Int, onComplete: Graph[SinkShape[Any], _])(implicit mat: Materializer): Cascade = {
     val (actorRef, killSwitch, publisher) = ActorSource
       .actorRef[Any](
         completionMatcher = PartialFunction.empty,
@@ -52,13 +52,14 @@ object Cascade {
         overflowStrategy = OverflowStrategy.dropHead
       )
       .viaMat(KillSwitches.single)(Keep.both)
-      .toMat(Sink.asPublisher(true))(flatKeep)
+      .toMat(Sink.asPublisher(true))(FlatKeep.bothR)
       .run()
 
-    val source = Source.fromPublisher(publisher)
+    val source = Source
+      .fromPublisher(publisher)
+      .toBroadcastHub(bufferSize)
+      .alsoTo(onComplete)
 
     new Cascade(actorRef, source, killSwitch)
   }
-
-  private def flatKeep[R1, R2, L]: ((R1, R2), L) => (R1, R2, L) = (r, l) => (r._1, r._2, l)
 }

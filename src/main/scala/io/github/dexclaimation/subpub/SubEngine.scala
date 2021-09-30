@@ -14,8 +14,6 @@ import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.stream.Materializer
 import akka.stream.Materializer.createMaterializer
 import akka.stream.scaladsl.Sink
-import io.github.dexclaimation.subpub.implicits._
-import io.github.dexclaimation.subpub.model.Subtypes.{ID, cuid}
 import io.github.dexclaimation.subpub.model.{Cascade, SubIntent}
 
 import scala.collection.mutable
@@ -36,11 +34,7 @@ class SubEngine(
 
   /** Subscriber Collection */
   private val subscribers = mutable.Map
-    .empty[ID, Cascade]
-
-  /** Topics Index Collection */
-  private val topics = mutable.Map
-    .empty[String, Seq[ID]]
+    .empty[String, Cascade]
 
   /**
    * On Message Handler
@@ -49,38 +43,37 @@ class SubEngine(
    */
   def onMessage(msg: SubIntent): Behavior[SubIntent] = receive(msg) {
     case SubIntent.Fetch(topic, rep) => safe {
-      val id = cuid()
-      val sub = Cascade(bufferSize)
-      val source = sub.source(pipeToSelf(id))
+      val sub = subscribers.getOrElse(topic,
+        Cascade(bufferSize, onComplete = pipeToSelf(topic))
+      )
+      val source = sub.stream
 
       rep ! source
 
-      subscribers.update(id, sub)
-      topics.update(topic,
-        topics.getOrElse(topic, Seq.empty) :+ id
-      )
+      subscribers.update(topic, sub)
     }
 
     case SubIntent.Publish(topic, payload) => safe {
-      topics.includes(topic, subscribers)
-        .foreach(_.next(payload))
+      subscribers.get(topic).foreach(_.next(payload))
     }
 
     case SubIntent.AcidPill(topic) => safe {
-      topics.includes(topic, subscribers)
-        .foreach(_.shutdown())
-      topics.remove(topic)
+      subscribers.get(topic).foreach { cas =>
+        cas.shutdown()
+        subscribers.remove(topic)
+      }
     }
 
     case SubIntent.Reinitialize(topic) => safe {
-      topics.includes(topic, subscribers)
-        .foreach(_.shutdown())
+      subscribers.get(topic).foreach { cas =>
+        cas.shutdown()
+        subscribers.update(topic, Cascade(bufferSize, onComplete = pipeToSelf(topic)))
+      }
     }
 
-    case SubIntent.Timeout(id) => safe {
-      subscribers.get(id).foreach { sub =>
-        sub.shutdown()
-        subscribers.remove(id)
+    case SubIntent.Timeout(topic) => safe {
+      subscribers.get(topic).foreach { _ =>
+        subscribers.remove(topic)
       }
     }
   }
@@ -96,8 +89,8 @@ class SubEngine(
 
 
   /** End a subscriber */
-  private def pipeToSelf(id: ID): Sink[Any, NotUsed] = Sink.onComplete { _ =>
-    context.self ! SubIntent.Timeout(id)
+  private def pipeToSelf(topic: String): Sink[Any, NotUsed] = Sink.onComplete { _ =>
+    context.self ! SubIntent.Timeout(topic)
   }
 }
 

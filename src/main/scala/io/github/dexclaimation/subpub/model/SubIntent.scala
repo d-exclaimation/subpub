@@ -11,7 +11,6 @@ package io.github.dexclaimation.subpub.model
 import akka.NotUsed
 import akka.actor.typed.ActorRef
 import akka.stream.scaladsl.Source
-import io.github.dexclaimation.subpub.model.Subtypes.ID
 
 /** SubPub Intents */
 sealed trait SubIntent
@@ -30,5 +29,5 @@ object SubIntent {
   case class AcidPill(topic: String) extends SubIntent
 
   /** Timeout and Kill a Subscriber */
-  case class Timeout(id: ID) extends SubIntent
+  case class Timeout(topic: String) extends SubIntent
 }
