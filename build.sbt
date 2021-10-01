@@ -4,12 +4,12 @@
 scalaVersion := "2.13.3"
 ThisBuild / name := "subpub"
 ThisBuild / organization := "io.github.d-exclaimation"
-ThisBuild / version := "0.1.6"
+ThisBuild / version := "0.1.7"
 ThisBuild / organizationHomepage := Some(url("https://www.dexclaimation.com"))
 ThisBuild / scmInfo := Some(
   ScmInfo(
-    url("https://github.com/d-exclaimation/whiskey"),
-    "scm:git@github.d-exclaimation/whiskey.git"
+    url("https://github.com/d-exclaimation/subpub"),
+    "scm:git@github.d-exclaimation/subpub.git"
   )
 )
 
@@ -26,7 +26,7 @@ crossPaths := false
 
 ThisBuild / description := "A GraphQL over Websocket Stream-based Subscription Transport Layer on Akka."
 ThisBuild / licenses += ("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0"))
-ThisBuild / homepage := Some(url("https://github.com/d-exclaimation/whiskey"))
+ThisBuild / homepage := Some(url("https://github.com/d-exclaimation/subpub"))
 
 // Remove all additional repository other than Maven Central from POM
 ThisBuild / pomIncludeRepository := { _ => false }
