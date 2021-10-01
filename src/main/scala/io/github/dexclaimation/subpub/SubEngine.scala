@@ -27,7 +27,7 @@ import scala.util.Try
  */
 class SubEngine(
   override val context: ActorContext[SubIntent],
-  bufferSize: Int = 100,
+  bufferSize: Int,
 ) extends AbstractBehavior[SubIntent](context) {
 
   implicit private val mat: Materializer = createMaterializer(context)
@@ -54,7 +54,7 @@ class SubEngine(
     }
 
     case SubIntent.Publish(topic, payload) => safe {
-      subscribers.get(topic).foreach(_.next(payload))
+      subscribers.get(topic).foreach(_ ! payload)
     }
 
     case SubIntent.AcidPill(topic) => safe {
@@ -64,15 +64,8 @@ class SubEngine(
       }
     }
 
-    case SubIntent.Reinitialize(topic) => safe {
-      subscribers.get(topic).foreach { cas =>
-        cas.shutdown()
-        subscribers.update(topic, Cascade(bufferSize, onComplete = pipeToSelf(topic)))
-      }
-    }
-
     case SubIntent.Timeout(topic) => safe {
-      subscribers.get(topic).foreach { _ =>
+      if (subscribers.contains(topic)) {
         subscribers.remove(topic)
       }
     }
@@ -96,7 +89,7 @@ class SubEngine(
 
 object SubEngine {
   /** Create a Actor Behavior for SubEngine */
-  def behavior(bufferSize: Int = 100): Behavior[SubIntent] =
+  def behavior(bufferSize: Int = 256): Behavior[SubIntent] =
     Behaviors.setup(new SubEngine(_, bufferSize))
 
 }

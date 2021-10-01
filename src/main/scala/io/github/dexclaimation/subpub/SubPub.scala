@@ -26,7 +26,7 @@ import scala.reflect.ClassTag
  * @param awaitDuration The amount of time to wait for Source.
  */
 class SubPub(
-  bufferSize: Int = 100,
+  bufferSize: Int = 256,
   idleDuration: FiniteDuration = 3.seconds,
   awaitDuration: FiniteDuration = 5.seconds,
 )(implicit system: ActorSystem[SpawnProtocol.Command]) {
@@ -184,7 +184,7 @@ object SubPub {
    * @param awaitDuration The amount of time to wait for Source.
    */
   def apply(
-    bufferSize: Int = 100,
+    bufferSize: Int = 256,
     idleDuration: FiniteDuration = 3.seconds,
     awaitDuration: FiniteDuration = 5.seconds,
   )(implicit system: ActorSystem[SpawnProtocol.Command]): SubPub = new SubPub(bufferSize, idleDuration, awaitDuration)

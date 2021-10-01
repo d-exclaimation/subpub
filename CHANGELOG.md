@@ -5,6 +5,9 @@
 - Added `source` method with `initValue` and / or `endValue` to have a `Source` with a initial data or closing one (Only
   for that source not the topic).
 - Added `apply` for `SubPub` to construct without the `new` keyword.
+- Removed unused code.
+- Updated default buffer size to `256`.
+- Updated package description to the actual github repo.
 
 ### v0.1.6
 
