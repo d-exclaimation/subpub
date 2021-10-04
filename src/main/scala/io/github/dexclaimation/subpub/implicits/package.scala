@@ -10,7 +10,7 @@ package io.github.dexclaimation.subpub
 
 import akka.NotUsed
 import akka.stream.Materializer
-import akka.stream.scaladsl.{BroadcastHub, Keep, Source}
+import akka.stream.scaladsl.{BroadcastHub, Concat, Keep, Source}
 
 import java.time.Instant
 
@@ -48,5 +48,15 @@ package object implicits {
       val bs = if (isPowerOf2 && isBetween) bufferSize else 256
       source.toMat(BroadcastHub.sink[T](bs))(Keep.right).run()
     }
+
+    /**
+     * Concat Source in order where once the previous finished the next is fired.
+     *
+     * @param other         The compulsory next source.
+     * @param otherInOrders The optionals next sources.
+     * @return Combined source.
+     */
+    def concatWith(other: Source[T, _], otherInOrders: Source[T, _]*): Source[T, NotUsed] =
+      Source.combine(source, other, otherInOrders: _*)(Concat(_))
   }
 }

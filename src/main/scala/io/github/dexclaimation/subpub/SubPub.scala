@@ -9,9 +9,10 @@ package io.github.dexclaimation.subpub
 
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.{ActorRef, ActorSystem, Props, SpawnProtocol}
-import akka.stream.scaladsl.{Concat, Source}
+import akka.stream.scaladsl.Source
 import akka.util.Timeout
 import akka.{Done, NotUsed}
+import io.github.dexclaimation.subpub.implicits._
 import io.github.dexclaimation.subpub.model.SubIntent
 
 import scala.concurrent.duration._
@@ -100,10 +101,10 @@ class SubPub(
    * @tparam T The type for the Source
    * @return Source of type T.
    */
-  def source[T: ClassTag](topic: String, endValue: => T): Source[T, NotUsed] =
+  def source[T: ClassTag](topic: String, endValue: () => T): Source[T, NotUsed] =
     combineSource(source[T](topic),
       init = None,
-      end = Some(Source.single(endValue))
+      end = Some(Source.lazySingle(endValue))
     )
 
   /**
@@ -115,10 +116,10 @@ class SubPub(
    * @tparam T The type for the Source
    * @return Source of type T.
    */
-  def source[T: ClassTag](topic: String, initValue: T, endValue: T): Source[T, NotUsed] =
+  def source[T: ClassTag](topic: String, initValue: T, endValue: () => T): Source[T, NotUsed] =
     combineSource(source[T](topic),
       init = Some(Source.single(initValue)),
-      end = Some(Source.single(endValue))
+      end = Some(Source.lazySingle(endValue))
     )
 
   /**
@@ -134,12 +135,9 @@ class SubPub(
     init: Option[Source[T, NotUsed]],
     end: Option[Source[T, NotUsed]]
   ): Source[T, NotUsed] = (init, end) match {
-    case (Some(stream1), Some(stream2)) =>
-      Source.combine(stream1, stream, stream2)(Concat(_))
-    case (Some(stream1), None) =>
-      Source.combine(stream1, stream)(Concat(_))
-    case (None, Some(stream2)) =>
-      Source.combine(stream, stream2)(Concat(_))
+    case (Some(stream1), Some(stream2)) => stream1.concatWith(stream, stream2)
+    case (Some(stream1), None) => stream1.concatWith(stream)
+    case (None, Some(stream2)) => stream.concatWith(stream2)
     case _ => stream
   }
 
