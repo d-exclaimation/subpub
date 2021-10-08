@@ -4,11 +4,11 @@
 <p align="center"> <h1>SubPub</h1></p>
 
 
-A lightweight Akka Stream PubSub engine for distributing data to multiple consumers.
+A lightweight in-memory Akka Stream Pub/Sub engine for distributing data to multiple consumers.
 
 ## Setup
 
-**Latest Version**: `0.1.7`
+**Latest Version**: `0.1.8`
 
 ```sbt
 "io.github.d-exclaimation" % "subpub" % latestVersion

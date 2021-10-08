@@ -1,5 +1,9 @@
 # CHANGELOG
 
+### v0.1.8
+
+- Fixed `endValue` logic to be lazily called only during stream completion.
+
 ### v0.1.7
 
 - Added `source` method with `initValue` and / or `endValue` to have a `Source` with a initial data or closing one (Only

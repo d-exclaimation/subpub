@@ -4,7 +4,7 @@
 scalaVersion := "2.13.3"
 ThisBuild / name := "subpub"
 ThisBuild / organization := "io.github.d-exclaimation"
-ThisBuild / version := "0.1.7"
+ThisBuild / version := "0.1.8"
 ThisBuild / organizationHomepage := Some(url("https://www.dexclaimation.com"))
 ThisBuild / scmInfo := Some(
   ScmInfo(
@@ -24,7 +24,7 @@ ThisBuild / developers := List(
 
 crossPaths := false
 
-ThisBuild / description := "A GraphQL over Websocket Stream-based Subscription Transport Layer on Akka."
+ThisBuild / description := "In Memory Pub/Sub Engine using Akka Actors and Streams"
 ThisBuild / licenses += ("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0"))
 ThisBuild / homepage := Some(url("https://github.com/d-exclaimation/subpub"))
 
