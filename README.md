@@ -11,7 +11,7 @@ A lightweight in-memory Akka Stream Pub/Sub engine for distributing data to mult
 **Latest Version**: `0.1.8`
 
 ```sbt
-"io.github.d-exclaimation" % "subpub" % latestVersion
+"io.github.d-exclaimation" %% "subpub" % latestVersion
 ```
 
 ## Feature
@@ -145,7 +145,7 @@ object Main extends SprayJsonSupport {
     (post & path("graphql") & entity(as[JsValue])) { req =>
       graphQLEndpoint(req, pubsub)
     } ~ path("graphql" / "websocket") {
-      layer.ws(pubsub)
+      layer.applyMiddleware(pubsub)
     }
   }
 

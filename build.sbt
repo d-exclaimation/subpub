@@ -1,8 +1,5 @@
-
-// The simplest possible sbt build file is just one line:
-
 scalaVersion := "2.13.3"
-ThisBuild / name := "subpub"
+name := "subpub"
 ThisBuild / organization := "io.github.d-exclaimation"
 ThisBuild / version := "0.1.8"
 ThisBuild / organizationHomepage := Some(url("https://www.dexclaimation.com"))
@@ -21,8 +18,6 @@ ThisBuild / developers := List(
     url = url("https://www.dexclaimation.com")
   )
 )
-
-crossPaths := false
 
 ThisBuild / description := "In Memory Pub/Sub Engine using Akka Actors and Streams"
 ThisBuild / licenses += ("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0"))
