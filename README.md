@@ -4,7 +4,7 @@
 <p align="center"> <h1>SubPub</h1></p>
 
 
-A lightweight in-memory Akka Stream Pub/Sub engine for distributing data to multiple consumers.
+In Memory Pub/Sub Engine using Akka Actors and Streams.
 
 ## Setup
 
@@ -25,7 +25,9 @@ SubPub main goals are to:
 
 ### Consideration
 
-Similar to `PubSub` from [graphql-subscriptions](https://github.com/apollographql/graphql-subscriptions), SubPub is also an in-memory event streaming system that only supports a single server instance. On a production environment, it is strongly recommended to use other implementation that are backed with an external datastore such as Redis or Kafka.
+Similar to `PubSub` from [graphql-subscriptions](https://github.com/apollographql/graphql-subscriptions), SubPub is also
+an in-memory event streaming system that only supports a single server instance. On a production environment, it is
+strongly recommended to use other implementation that are backed with an external datastore such as Redis or Kafka.
 
 Consider using [Alpakka](https://doc.akka.io/docs/alpakka/current/index.html) instead for this scenario.
 
@@ -42,11 +44,11 @@ import io.github.dexclaimation.subpub.SubPub
 object Main extends SprayJsonSupport {
   // ...
 
-  val pubsub = new SubPub()
+  val pubsub = SubPub()
 
   val route: Route = {
     (path("send" / Segment) & post & entity(as[JsValue])) { path =>
-      entity(as[JsValue]) { 
+      entity(as[JsValue]) {
         case JsObject(body) => sendMessage(path, body)
         case _ => complete(BadRequest -> JsString("Bad message"))
       }
@@ -63,13 +65,13 @@ object Main extends SprayJsonSupport {
       val msg = JsObject(
         "content" -> content,
         "name" -> name,
-        "createdAt" -> JsString(Instant.now().toString) 
+        "createdAt" -> JsString(Instant.now().toString)
       )
       // Push message to subpub
       pubsub.publish(s"chat::$path", msg)
       complete(OK -> msg)
     } catch {
-      case NonFatal(_) => 
+      case NonFatal(_) =>
         complete(BadRequest -> "Bad message")
     }
   }
@@ -78,7 +80,7 @@ object Main extends SprayJsonSupport {
   def websocketMessage(path: String): Flow[Message, TextMessage.Strict, _] = {
     val source = pubsub
       .source[JsValue](s"chat::$path")
-      .map(_.compactPrint) 
+      .map(_.compactPrint)
       .map(TextMessage.Strict)
 
     val sink = Flow[Message]
@@ -91,6 +93,7 @@ object Main extends SprayJsonSupport {
   // ...
 }
 ```
+
 </details>
 <details>
 <summary><b>Realtime GraphQL API</b></summary>
@@ -101,7 +104,7 @@ and [OverLayer](https://overlayer.netlify.app).
 ```scala
 import io.github.dexclaimation.subpub.SubPub
 
-object Main extends SprayJsonSupport {
+object Main {
   // ...
 
   val MessageType = ???
@@ -138,21 +141,13 @@ object Main extends SprayJsonSupport {
   val schema = Schema(QueryType, Some(MutationType), Some(SubscriptionType))
 
   // OverLayer for handling GraphQL over Websocket
-  val layer = OverTransportLayer(schema, ())
-  val pubsub = new SubPub()
+  val gqlTransport = OverTransportLayer(schema, ())
+  val pubsub = SubPub()
 
-  val route: Route = {
-    (post & path("graphql") & entity(as[JsValue])) { req =>
-      graphQLEndpoint(req, pubsub)
-    } ~ path("graphql" / "websocket") {
-      layer.applyMiddleware(pubsub)
+  val route: Route =
+    path("graphql" / "websocket") {
+      gqlTransport.applyMiddleware(pubsub)
     }
-  }
-
-  // Handle GraphQL over HTTP
-  private def graphQLEndpoint(requestJson: JsValue, context: SubPub) = ???
-
-  // ...
 }
 ```
 

@@ -42,6 +42,8 @@ libraryDependencies ++= {
     "com.typesafe.akka" %% "akka-actor-typed" % AkkaVersion,
     "com.typesafe.akka" %% "akka-stream" % AkkaVersion,
     "com.typesafe.akka" %% "akka-stream-typed" % AkkaVersion,
+    "org.scalatest" %% "scalatest" % "3.2.9" % Test,
+    "com.typesafe.akka" %% "akka-actor-testkit-typed" % AkkaVersion % Test,
   )
 }
 

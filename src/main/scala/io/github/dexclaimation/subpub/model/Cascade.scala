@@ -52,7 +52,7 @@ object Cascade {
         overflowStrategy = OverflowStrategy.dropHead
       )
       .viaMat(KillSwitches.single)(Keep.both)
-      .toMat(Sink.asPublisher(true))(FlatKeep.bothR)
+      .toMat(Sink.asPublisher(true))(FlatKeep.bothL)
       .run()
 
     val source = Source
