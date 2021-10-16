@@ -97,6 +97,7 @@ class ModelTest extends AnyWordSpec with Matchers {
         cas1.next(1)
         cas1.next(2)
         cas1.next(3)
+        Thread.sleep(25)
         cas1.shutdown()
         val Seq(1, 2, 3) = Await.result(fut, 1.seconds)
       }

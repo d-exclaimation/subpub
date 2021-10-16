@@ -2,6 +2,10 @@
 
 ### v0.1.8
 
+- Updated `akka` to latest version and Scala to `2.13.6`.
+
+### v0.1.8
+
 - Fixed `endValue` logic to be lazily called only during stream completion.
 
 ### v0.1.7

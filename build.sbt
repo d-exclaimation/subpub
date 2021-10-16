@@ -1,7 +1,7 @@
-scalaVersion := "2.13.3"
+scalaVersion := "2.13.6"
 name := "subpub"
 ThisBuild / organization := "io.github.d-exclaimation"
-ThisBuild / version := "0.1.8"
+ThisBuild / version := "0.1.9"
 ThisBuild / organizationHomepage := Some(url("https://www.dexclaimation.com"))
 ThisBuild / scmInfo := Some(
   ScmInfo(
@@ -37,7 +37,7 @@ ThisBuild / publishMavenStyle := true
 ThisBuild / versionScheme := Some("early-semver")
 
 libraryDependencies ++= {
-  val AkkaVersion = "2.6.16"
+  val AkkaVersion = "2.6.17"
   Seq(
     "com.typesafe.akka" %% "akka-actor-typed" % AkkaVersion,
     "com.typesafe.akka" %% "akka-stream" % AkkaVersion,

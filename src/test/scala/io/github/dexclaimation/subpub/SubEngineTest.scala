@@ -61,12 +61,14 @@ class SubEngineTest extends AnyWordSpec with Matchers with BeforeAndAfterAll wit
         val res1 = get().runWith(Sink.seq)
 
         engine.tell(SubIntent.Publish("test-topic", "Hello"))
+        Thread.sleep(25)
         engine.tell(SubIntent.AcidPill("test-topic"))
+
         engine.tell(SubIntent.Publish("test-topic", "Not received"))
         val combined = Future.reduceLeft(res0 :: res1 :: Nil)(_ ++ _)
         Await.result(combined, 10.seconds) match {
           case Seq("Hello", "Hello") => succeed
-          case _ => fail("Does not receive messages")
+          case x => fail(s"Does not receive proper message, instead got ($x)")
         }
       }
     }
