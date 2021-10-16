@@ -8,7 +8,7 @@ In Memory Pub/Sub Engine using Akka Actors and Streams.
 
 ## Setup
 
-**Latest Version**: `0.1.8`
+**Latest Version**: `0.1.9`
 
 ```sbt
 "io.github.d-exclaimation" %% "subpub" % latestVersion
