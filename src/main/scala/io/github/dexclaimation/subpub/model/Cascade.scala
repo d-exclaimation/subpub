@@ -36,13 +36,22 @@ case class Cascade(
   }
 
   /** Stop the stream */
-  def shutdown(): Unit = killSwitch.shutdown()
+  def shutdown(): Unit = {
+    Thread.sleep(0)
+    killSwitch.shutdown()
+  }
 
   /** Source with a stoppable consumer source */
   def stream: Source[Any, NotUsed] = source
 }
 
 object Cascade {
+  /**
+   * Create a new Cascade
+   *
+   * @param bufferSize Buffer size in `2^n`
+   * @param onComplete On Complete handler
+   */
   def apply(bufferSize: Int, onComplete: Graph[SinkShape[Any], _])(implicit mat: Materializer): Cascade = {
     val (actorRef, killSwitch, publisher) = ActorSource
       .actorRef[Any](

@@ -91,5 +91,4 @@ object SubEngine {
   /** Create a Actor Behavior for SubEngine */
   def behavior(bufferSize: Int = 256): Behavior[SubIntent] =
     Behaviors.setup(new SubEngine(_, bufferSize))
-
 }
